@@ -13,7 +13,6 @@ REPOSITORY="https://raw.githubusercontent.com/frqtech/idp-ubnt-2204-shib5/main"
 SRCDIR="/root/shibboleth-identity-provider-5.0.0"
 SHIBDIR="/opt/shibboleth-idp"
 F_LOG="/root/cafe-install.log"
-VERSAO="5.0.0"
 
 SYSDATE=`date +"%Y-%m-%d %H:%M:%S %z"`
 SO_DISTID=`lsb_release -i | awk '{ print $3 }'` 
@@ -21,8 +20,11 @@ SO_RELEASE=`lsb_release -r | awk '{ print $2 }'`
 
 FIRSTBOOT="/root/firstboot.sh"
 
-SHIBTAR="https://shibboleth.net/downloads/identity-provider/archive/5.0.0/shibboleth-identity-provider-5.0.0.tar.gz"
-SHIBSUM="https://shibboleth.net/downloads/identity-provider/archive/5.0.0/shibboleth-identity-provider-5.0.0.tar.gz.sha256" 
+SHIBVERSION="5.1.3"
+SHIBTAR="https://shibboleth.net/downloads/identity-provider/archive/5.0.0/shibboleth-identity-provider-${SHIBVERSION}.tar.gz"
+SHIBSUM="https://shibboleth.net/downloads/identity-provider/archive/5.0.0/shibboleth-identity-provider-${SHIBVERSION}.tar.gz.sha256" 
+SHIBTAROUT="/root/shibboleth-identity-provider-${SHIBVERSION}.tar.gz"
+SHIBSUMOUT="/root/shibboleth-identity-provider-${SHIBVERSION}.tar.gz.sha256"
 
 RET=""
 
@@ -249,7 +251,7 @@ function install_shib {
 
     echo "INFO - Download do pacote do Shibboleth IDP" | tee -a ${F_LOG}
     echo "" | tee -a ${F_LOG}
-    wget ${SHIBTAR} -O /root/shibboleth-identity-provider-5.0.0.tar.gz
+    wget ${SHIBTAR} -O ${SHIBTAROUT}
     if [ $? -ne 0 ] ; then
         echo "ERRO - Falha no download do arquivo ${SHIBTAR}." | tee -a ${F_LOG}
         echo "" | tee -a ${F_LOG}
@@ -258,9 +260,19 @@ function install_shib {
 
     echo "INFO - Download do checksum do pacote do Shibboleth IDP" | tee -a ${F_LOG}
     echo "" | tee -a ${F_LOG}
-    wget ${SHIBSUM} -O /root/shibboleth-identity-provider-5.0.0.tar.gz.sha256 
+    wget ${SHIBSUM} -O ${SHIBSUMOUT}
     if [ $? -ne 0 ] ; then
         echo "ERRO - Falha no download do arquivo ${SHIBSUM}." | tee -a ${F_LOG}
+        echo "" | tee -a ${F_LOG}
+        exit 1
+    fi
+
+    sha256sum -c ${SHIBSUMOUT}
+    if [ $? -eq 0 ] ; then
+        echo "O arquivo ${SHIBTAROUT} está integro." | tee -a ${F_LOG}
+        echo "" | tee -a ${F_LOG}
+    else
+        echo "ERRO: O arquivo ${SHIBTAROUT} não está integro." | tee -a ${F_LOG}
         echo "" | tee -a ${F_LOG}
         exit 1
     fi
@@ -315,7 +327,7 @@ EOF
     echo "INFO - Instalando Shibboleth IDP" | tee -a ${F_LOG}
     echo "" | tee -a ${F_LOG}
 
-    tar -zxvf /root/shibboleth-identity-provider-5.0.0.tar.gz
+    tar -zxvf ${SHIBTAROUT}
 
     cat > /root/idp.property <<-EOF
 idp.target.dir=${SHIBDIR}
