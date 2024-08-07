@@ -20,8 +20,8 @@ SO_RELEASE=`lsb_release -r | awk '{ print $2 }'`
 FIRSTBOOT="/root/firstboot.sh"
 
 SHIBVERSION="5.1.3"
-SHIBTAR="https://shibboleth.net/downloads/identity-provider/archive/5.0.0/shibboleth-identity-provider-${SHIBVERSION}.tar.gz"
-SHIBSUM="https://shibboleth.net/downloads/identity-provider/archive/5.0.0/shibboleth-identity-provider-${SHIBVERSION}.tar.gz.sha256" 
+SHIBTAR="https://shibboleth.net/downloads/identity-provider/archive/${SHIBVERSION}/shibboleth-identity-provider-${SHIBVERSION}.tar.gz"
+SHIBSUM="https://shibboleth.net/downloads/identity-provider/archive/${SHIBVERSION}/shibboleth-identity-provider-${SHIBVERSION}.tar.gz.sha256" 
 SHIBTAROUT="/root/shibboleth-identity-provider-${SHIBVERSION}.tar.gz"
 SHIBSUMOUT="/root/shibboleth-identity-provider-${SHIBVERSION}.tar.gz.sha256"
 
