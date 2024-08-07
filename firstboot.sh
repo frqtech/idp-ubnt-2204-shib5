@@ -4,14 +4,13 @@
 #description        Configuration script for CAFe IDP
 #author             Rui Ribeiro - rui.ribeiro@cafe.rnp.br
 #lastchangeauthor   Rui Ribeiro - rui.ribeiro@cafe.rnp.br
-#date               2022/08/08
-#version            5.0.0
+#date               2024/08/07
+#version            5.0.1
 #
+#changelog          5.0.1 - 2024/08/07 - Adequação para Shibboleth IDP 5.1.3.
 #changelog          5.0.0 - 2024/02/29 - Adequação para Shibboleth IDP 5.0.0.
 
 REPOSITORY="https://raw.githubusercontent.com/frqtech/idp-ubnt-2204-shib5/main"
-SRCDIR="/root/shibboleth-identity-provider-5.0.0"
-SHIBDIR="/opt/shibboleth-idp"
 F_LOG="/root/cafe-install.log"
 
 SYSDATE=`date +"%Y-%m-%d %H:%M:%S %z"`
@@ -25,6 +24,10 @@ SHIBTAR="https://shibboleth.net/downloads/identity-provider/archive/5.0.0/shibbo
 SHIBSUM="https://shibboleth.net/downloads/identity-provider/archive/5.0.0/shibboleth-identity-provider-${SHIBVERSION}.tar.gz.sha256" 
 SHIBTAROUT="/root/shibboleth-identity-provider-${SHIBVERSION}.tar.gz"
 SHIBSUMOUT="/root/shibboleth-identity-provider-${SHIBVERSION}.tar.gz.sha256"
+
+SRCDIR="/root/shibboleth-identity-provider-${SHIBVERSION}"
+SHIBDIR="/opt/shibboleth-idp"
+
 
 RET=""
 
