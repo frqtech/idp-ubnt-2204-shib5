@@ -40,29 +40,8 @@
             <PermitValueRule xsi:type="ANY" />
         </AttributeRule>
 
-        <AttributeRule attributeID="brEduAffiliationType">
-            <PermitValueRule xsi:type="OR">
-                <Rule xsi:type="Value" value="student" />
-                <Rule xsi:type="Value" value="faculty" />
-                <Rule xsi:type="Value" value="employee" />
-                <Rule xsi:type="Value" value="alum" />
-                <Rule xsi:type="Value" value="other" />
-                <Rule xsi:type="Value" value="position" />
-                <Rule xsi:type="Value" value="scholarshipAwardee" />
-            </PermitValueRule>
-        </AttributeRule>
-
-        <AttributeRule attributeID="eduPersonAffiliation">
-            <PermitValueRule xsi:type="OR">
-                <Rule xsi:type="Value" value="faculty" />
-                <Rule xsi:type="Value" value="student" />
-                <Rule xsi:type="Value" value="staff" />
-                <Rule xsi:type="Value" value="alum" />
-                <Rule xsi:type="Value" value="member" />
-                <Rule xsi:type="Value" value="affiliate" />
-                <Rule xsi:type="Value" value="employee" />
-                <Rule xsi:type="Value" value="library-walk-in" />
-            </PermitValueRule>
+        <AttributeRule attributeID="ImmutableID">
+            <PermitValueRule xsi:type="ANY"/>
         </AttributeRule>
 
     </AttributeFilterPolicy>
@@ -77,14 +56,18 @@
             <Rule value="https://homolog.eduid.rnp.br/shibboleth-sp2" xsi:type="Requester" />
         </PolicyRequirementRule>
 
+        <!--
         <AttributeRule attributeID="schacDateOfBirth">
             <PermitValueRule xsi:type="ANY" />
         </AttributeRule>
+        -->
 
+        <!--
         <AttributeRule attributeID="brPersonCPF">
             <PermitValueRule xsi:type="ANY" />
         </AttributeRule>
-
+        -->
+        
     </AttributeFilterPolicy>
 
     <AttributeFilterPolicy id="releaseEduGAIN">
@@ -103,6 +86,22 @@
         </AttributeRule>
 
         <AttributeRule attributeID="eduPersonEntitlement">
+            <PermitValueRule xsi:type="ANY" />
+        </AttributeRule>
+
+        <AttributeRule attributeID="eduPersonAssurance">
+            <PermitValueRule xsi:type="ANY" />
+        </AttributeRule>
+
+        <AttributeRule attributeID="eduPersonUniqueId">
+            <PermitValueRule xsi:type="ANY" />
+        </AttributeRule>
+
+        <AttributeRule attributeID="schacHomeOrganization">
+            <PermitValueRule xsi:type="ANY" />
+        </AttributeRule>
+
+        <AttributeRule attributeID="schacHomeOrganizationType">
             <PermitValueRule xsi:type="ANY" />
         </AttributeRule>
 

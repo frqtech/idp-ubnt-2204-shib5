@@ -4,9 +4,10 @@
 #description        Configuration script for CAFe IDP
 #author             Rui Ribeiro - rui.ribeiro@cafe.rnp.br
 #lastchangeauthor   Rui Ribeiro - rui.ribeiro@cafe.rnp.br
-#date               2024/08/07
-#version            5.0.1
+#date               2024/10/25
+#version            5.0.2
 #
+#changelog          5.0.2 - 2024/10/25 - MFA e ajustes gerais.
 #changelog          5.0.1 - 2024/08/07 - Adequação para Shibboleth IDP 5.1.3.
 #changelog          5.0.0 - 2024/02/29 - Adequação para Shibboleth IDP 5.0.0.
 
@@ -27,7 +28,6 @@ SHIBSUMOUT="/root/shibboleth-identity-provider-${SHIBVERSION}.tar.gz.sha256"
 
 SRCDIR="/root/shibboleth-identity-provider-${SHIBVERSION}"
 SHIBDIR="/opt/shibboleth-idp"
-
 
 RET=""
 
@@ -71,72 +71,6 @@ function update_packages {
 
 }
 
-function config_network {
-
-    echo "INFO - Iniciando a configuração de rede" | tee -a ${F_LOG}
-    echo "" | tee -a ${F_LOG}
-
-    cat > /etc/netplan/00-installer-config.yaml <<-EOF
-network:
-  version: 2
-  renderer: networkd
-  ethernets:
-    ${INTERFACE}:
-      dhcp4: no
-      addresses: [${IP}/${MASK}]
-      routes:
-        - to: default
-          via: ${GATEWAY}
-      nameservers:
-        addresses: [${DNS}]
-EOF
-    
-    hostnamectl set-hostname ${HN}.${HN_DOMAIN}
-    echo "${IP} ${HN}.${HN_DOMAIN} ${HN}" >> /etc/hosts
-    
-    echo "INFO - Ajustando Stub DNS" | tee -a ${F_LOG}
-    echo "" | tee -a ${F_LOG}
-    ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
-    
-    echo "INFO - Gerando novas chaves para o Servidor SSH" | tee -a ${F_LOG}
-    find /etc/ssh -name "ssh_host_*_key*" -exec rm {} \;
-    DEBIAN_FRONTEND=noninteractive DEBIAN_PRIORITY=critical dpkg-reconfigure openssh-server
-    echo "INFO - Geracao de chaves finalizada" | tee -a ${F_LOG}
-    echo "" | tee -a ${F_LOG}
-
-    echo "INFO - Aplicando configurações de rede..." | tee -a ${F_LOG}
-    netplan apply
-    sleep 5
-    
-    THRESHOLD=3
-    TRY=1
-    
-    while [ ${TRY} -le ${THRESHOLD} ] ; do
-        NETTEST=`curl -s ${REPOSITORY}/network.test`
-        if [ "${NETTEST}" = "Network test OK." ] ; then
-            apt update
-            apt dist-upgrade -y
-            break
-        else
-            echo "ATENCAO - Falha no teste de comunicacao de rede - ${TRY}/${THRESHOLD}"
-            if [ ${TRY} -lt ${THRESHOLD} ] ; then
-                echo "          Nova tentativa em 5 segundos..."
-                sleep 5
-                netplan apply
-            else
-                echo "ERRO - Nao foi possivel testar a comunicacao com a rede." | tee -a ${F_LOG}
-                echo "       O instalador não pode avançar sem rede." | tee -a ${F_LOG}
-                echo "" | tee -a ${F_LOG}
-                exit 1
-            fi
-        fi
-        let TRY++
-    done
-    echo "INFO - Configuração de rede finalizada" | tee -a ${F_LOG}
-    echo "" | tee -a ${F_LOG}
-
-}
-
 function config_firewall {
 
     echo "INFO - Iniciando configuração de firewall" | tee -a ${F_LOG}
@@ -145,7 +79,7 @@ function config_firewall {
     wget ${REPOSITORY}/firewall/firewall.service -O /etc/systemd/system/firewall.service
     mkdir -p /opt/rnp/firewall/
     wget ${REPOSITORY}/firewall/firewall.sh -O /opt/rnp/firewall/firewall.sh
-    
+
     chmod 755 /opt/rnp/firewall/firewall.sh
     chmod 664 /etc/systemd/system/firewall.service
     systemctl daemon-reload
@@ -191,15 +125,15 @@ function install_java {
     source /etc/environment
     export JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto
     echo $JAVA_HOME
-    
+
     wget https://corretto.aws/downloads/resources/17.0.10.7.1/B04F24E3.pub -O /tmp/B04F24E3.pub
     gpg --no-default-keyring --keyring /tmp/temp-keyring.gpg --import /tmp/B04F24E3.pub
     gpg --no-default-keyring --keyring /tmp/temp-keyring.gpg --export --output /etc/apt/keyrings/amazon-corretto.gpg
     rm /tmp/temp-keyring.gpg /tmp/B04F24E3.pub /tmp/temp-keyring.gpg~
-    
+
     echo "deb [signed-by=/etc/apt/keyrings/amazon-corretto.gpg] https://apt.corretto.aws stable main" >> /etc/apt/sources.list.d/amazon-corretto.list
     echo "#deb-src [signed-by=/etc/apt/keyrings/amazon-corretto.gpg] https://apt.corretto.aws stable main" >> /etc/apt/sources.list.d/amazon-corretto.list
-    
+
     apt update
     apt install -y java-17-amazon-corretto-jdk
 
@@ -299,7 +233,7 @@ function install_shib {
 default_bits = 2048 # Size of keys
 string_mask = nombstr # permitted characters
 distinguished_name = req_distinguished_name
-  
+
 [ req_distinguished_name ]
 # Variable name   Prompt string
 #----------------------   ----------------------------------
@@ -314,7 +248,7 @@ countryName_min = 2
 countryName_max = 2
 commonName = Nome completo do host (incluíndo o domínio)
 commonName_max = 64
-  
+
 # Default values for the above, for consistency and less typing.
 # Variable name   Value
 #------------------------------   ------------------------------
@@ -356,14 +290,20 @@ EOF
 
     echo "INFO - Obtendo arquivos de configuração estáticos" | tee -a ${F_LOG}
     echo "" | tee -a ${F_LOG}
-    wget ${REPOSITORY}/shibboleth/conf/attribute-filter.xml -O ${SHIBDIR}/conf/attribute-filter.xml
-    wget ${REPOSITORY}/shibboleth/conf/attribute-resolver.xml -O ${SHIBDIR}/conf/attribute-resolver.xml
+    if [ "${DIRECTORY}" == "OPENLDAP" ] ; then
+        wget ${REPOSITORY}/shibboleth/conf/attribute-filter-openldap.xml -O ${SHIBDIR}/conf/attribute-filter.xml
+        wget ${REPOSITORY}/shibboleth/conf/attribute-resolver-openldap.xml -O ${SHIBDIR}/conf/attribute-resolver.xml
+    elif [ "${DIRECTORY}" == "AD" ] ; then
+        wget ${REPOSITORY}/shibboleth/conf/attribute-filter-ad.xml -O ${SHIBDIR}/conf/attribute-filter.xml
+        wget ${REPOSITORY}/shibboleth/conf/attribute-resolver-ad.xml -O ${SHIBDIR}/conf/attribute-resolver.xml
+    fi
     wget ${REPOSITORY}/shibboleth/conf/metadata-providers.xml -O ${SHIBDIR}/conf/metadata-providers.xml
     wget ${REPOSITORY}/shibboleth/conf/saml-nameid.xml -O ${SHIBDIR}/conf/saml-nameid.xml
     wget ${REPOSITORY}/shibboleth/conf/admin/admin.properties -O ${SHIBDIR}/conf/admin/admin.properties
     wget ${REPOSITORY}/shibboleth/conf/attributes/brEduPerson.xml -O ${SHIBDIR}/conf/attributes/brEduPerson.xml
     wget ${REPOSITORY}/shibboleth/conf/attributes/default-rules.xml -O ${SHIBDIR}/conf/attributes/default-rules.xml
     wget ${REPOSITORY}/shibboleth/conf/attributes/schac.xml -O ${SHIBDIR}/conf/attributes/schac.xml
+    wget ${REPOSITORY}/shibboleth/conf/attributes/custom/ImmutableID.properties -O ${SHIBDIR}/conf/attributes/custom/ImmutableID.properties
 
     echo "INFO - Configurando ldap.properties" | tee -a ${F_LOG}
     echo "" | tee -a ${F_LOG}
@@ -940,6 +880,368 @@ EOF
 
 }
 
+function install_mfa {
+
+    ###################################################################################################
+    #Variables - Nao alterar valores padrao a menos que tenha conhecimento das implicacoes
+    ###################################################################################################
+
+    #Paths padroes. Cuidado pois a alteracao dos paths padroes pode envolver necessidade de ajustes adicionais em alguns arquivos
+    ####################################################################
+    DASHBOARD_DIR="/opt/dashboard"
+    MFA_TEMP="/tmp/mfa-install-shib5-v1"
+    IDP_METADATA="/metadata/idp-metadata.xml"
+    IDP_METADATA_FILEPATH=$SHIBDIR$IDP_METADATA
+    ####################################################################
+
+    #Ajustar entradas abaixo conforme atualizacao de pacotes
+    ####################################################################
+    MFA_PACKAGE="mfa-package-shib5-v1.tar.gz"
+    REPOSITORY="https://svn.cafe.rnp.br/repos/CAFe/mfa/"
+    ####################################################################
+
+    #idp variables
+    IDP_DATASEALER_NAME="cafesealer"
+    IDP_DATASEALER_PASSWD="cafeRNPMFA!"
+    IDP_DATASEALER_ALIAS="cafe"
+
+    #database variables
+    DATABASE="dbdashboard_mfa"
+    DB_DASH_USER="dashboardmfa"
+    DB_DASH_PASSWORD="kohveSh2"
+    DB_IDP_USER="dashboardmfa_ro"
+    DB_IDP_PASSWORD="aimv2dh5"
+    DB_REPL_USER="repuser"
+    DB_REPL_PASSWORD=$(< /dev/urandom tr -d -c 'A-Za-z0-9' | head -c10)
+    DB_PORT="5432"
+
+    ###############################
+    #          MAIN FUNCTIONS
+    ###############################
+
+    ###############################
+    #          SHIBBOLETH
+    ###############################
+
+    ### "Iniciando desempacotamento do pacote"
+    mkdir -p ${MFA_TEMP}
+    wget ${REPOSITORY}/${MFA_PACKAGE} -O ${MFA_TEMP}/${MFA_PACKAGE} --no-check-certificate
+    cd ${MFA_TEMP}
+    tar -zxvf ${MFA_TEMP}/${MFA_PACKAGE} --strip-components=1
+
+    #
+    # SHIBB - Static MFA files 
+    #
+
+    # Considera que os arquivos já estão com o conteúdo necessários
+    ### "" 
+    ### "Instalando plugins MFA"
+    ### "Obtendo arquivos de configuração do MFA"
+    cp ${MFA_TEMP}/idp/conf/authn/authn.properties ${SHIBDIR}/conf/authn/authn.properties
+    cp ${MFA_TEMP}/idp/conf/authn/authn-events-flow.xml ${SHIBDIR}/conf/authn/authn-events-flow.xml
+    cp ${MFA_TEMP}/idp/conf/authn/mfa-authn-config.xml ${SHIBDIR}/conf/authn/mfa-authn-config.xml
+    cp ${MFA_TEMP}/idp/conf/errors.xml ${SHIBDIR}/conf/errors.xml
+    cp ${MFA_TEMP}/idp/conf/logback.xml ${SHIBDIR}/conf/logback.xml
+
+    #
+    # SHIBB - MFA Templates and libs files 
+    #
+
+    # templates and libs
+    if [ ! -d "${SHIBDIR}/edit-webapp/api" ]; then
+        mkdir ${SHIBDIR}/edit-webapp/api
+    fi    
+    if [ ! -d "${SHIBDIR}/edit-webapp/js" ]; then
+        mkdir ${SHIBDIR}/edit-webapp/js
+    fi
+    if [ ! -d "${SHIBDIR}/edit-webapp/css" ]; then
+        mkdir ${SHIBDIR}/edit-webapp/css
+    fi    
+    if [ ! -d "${SHIBDIR}/edit-webapp/WEB-INF/lib" ]; then
+        mkdir -p ${SHIBDIR}/edit-webapp/WEB-INF/lib
+    fi    
+    cp ${MFA_TEMP}/idp/views/* ${SHIBDIR}/views/
+    cp -R ${MFA_TEMP}/idp/edit-webapp/api/* ${SHIBDIR}/edit-webapp/api/
+    cp -R ${MFA_TEMP}/idp/edit-webapp/js/* ${SHIBDIR}/edit-webapp/js/
+    cp -R ${MFA_TEMP}/idp/edit-webapp/css/* ${SHIBDIR}/edit-webapp/css/
+    cp -R ${MFA_TEMP}/idp/edit-webapp/images/* ${SHIBDIR}/edit-webapp/images/
+    cp ${MFA_TEMP}/idp/messages/*.properties ${SHIBDIR}/messages/
+
+    # modules jar
+    cp ${MFA_TEMP}/idp/edit-webapp/WEB-INF/lib/*.jar ${SHIBDIR}/edit-webapp/WEB-INF/lib/
+
+    #
+    # SHIB - DataSealer
+    #
+    ${SHIBDIR}/bin/seckeygen.sh --alias ${IDP_DATASEALER_ALIAS} --count 1 --storefile ${SHIBDIR}/credentials/${IDP_DATASEALER_NAME}.jks --storepass ${IDP_DATASEALER_PASSWD} --versionfile ${SHIBDIR}/credentials/${IDP_DATASEALER_NAME}.kver
+
+    #
+    # SHIB - messages.properties
+    #
+
+    ### "" 
+    ### "Configurando MFA messages.properties"
+
+    setProperty "mfa.mandatory.redirect" "https://${HN}.${HN_DOMAIN}/sp/logout-info" "${SHIBDIR}/messages/messages_pt_BR.properties"
+    setProperty "idp.login.username.label" "${MSG_AUTENTICACAO}" "${SHIBDIR}/messages/messages_pt_BR.properties"
+    setProperty "mfa.mandatory.redirect" "https://${HN}.${HN_DOMAIN}/sp/logout-info" "${SHIBDIR}/messages/messages.properties"
+    setProperty "idp.login.username.label" "${MSG_AUTENTICACAO}" "${SHIBDIR}/messages/messages.properties"
+
+    #
+    # SHIB - secrets.properties
+    #
+    ### "" 
+    ### "Configurando MFA secrets.properties"
+    cat  >> ${SHIBDIR}/credentials/secrets.properties <<-EOF
+
+# ----- MFA properties
+# Acess to DataSealer keys. See idp.properties to set related data
+rnp.datasealer.keystorePassword = ${IDP_DATASEALER_PASSWD}
+rnp.datasealer.keyPassword = ${IDP_DATASEALER_PASSWD}
+
+# Access to database. See idp.properties to set related data
+rnp.database.password = ${DB_IDP_PASSWORD}
+EOF
+
+    # SHIB - idp.properties
+    # Anexa ao arquivo idp.properties as propriedades relativas ao dashboard e aos estilos de pagina
+
+    ### "" 
+    ### "Configurando idp.properties MFA"
+    cat >> ${SHIBDIR}/conf/idp.properties <<-EOF
+
+# ----- MFA properties
+
+rnp.authn.CaptchaToken.key=${CAPTCHA_KEY}
+rnp.authn.CaptchaToken.secret=${CAPTCHA_TOKEN}
+
+rnp.authn.sp = https://${HN}.${HN_DOMAIN}/sp/saml2/service-provider-metadata/dashboard
+rnp.authn.sp.url = https://${HN}.${HN_DOMAIN}/sp
+
+rnp.database.url=jdbc:postgresql://localhost:${DB_PORT}/${DATABASE}
+rnp.database.username=${DB_IDP_USER}
+
+rnp.datasealer.jksPath = credentials/${IDP_DATASEALER_NAME}.jks
+rnp.datasealer.kverPath = credentials/${IDP_DATASEALER_NAME}.kver
+rnp.datasealer.alias = ${IDP_DATASEALER_ALIAS}
+
+# Information URLS
+rnp.info.url.whatis.mfa=https://ajuda.rnp.br/cafe/manual-do-usuario/painel-de-seguranca-mfa-cafe
+rnp.info.url.whatis.backupcode=https://ajuda.rnp.br/cafe/manual-do-usuario/painel-de-seguranca-mfa-cafe/codigos-de-emergencia-mfa
+rnp.info.url.whatis.totp=https://ajuda.rnp.br/cafe/manual-do-usuario/painel-de-seguranca-mfa-cafe/senhas-descartaveis-mfa
+rnp.info.url.help=https://ajuda.rnp.br/cafe/
+rnp.info.url.passwordReset= ${URL_RECUPERACAO_SENHA}
+
+# Frontend libraries path 
+rnp.path.bootstrap=/api/bootstrap/4.6.2/css
+rnp.path.font-awesome=/api/font-awesome/4.7.0/css
+rnp.path.font=/api/fonts-googleapis/roboto/
+
+#Dias ate a expiracao do dispositivo como confiavel para exibir aviso ao usuario
+rnp.info.trustedDevice.intervalToNotify=5
+EOF
+
+    #
+    # SHIB - attribute-filter.xml
+    # Inclui o SP do dashboard no arquivo attribute-filter. 
+    #
+    #
+
+    ### "" 
+    ### "Configurando attribute-filter.xml"
+
+    ATTRIBUTE_CONFIG="${SHIBDIR}/conf/attribute-filter.xml"
+    VALOR_ORIGINAL="<Rule groupID=\"urn:mace:shibboleth:cafe\" xsi:type=\"InEntityGroup\" \/>"
+    VALOR_SUBSTITUIR="<Rule value=\"https:\/\/${HN}.${HN_DOMAIN}\/sp\/saml2\/service-provider-metadata\/dashboard\" xsi:type=\"Requester\" \/>\n            <Rule groupID=\"urn:mace:shibboleth:cafe\" xsi:type=\"InEntityGroup\" \/>"
+    sed -i "s/$VALOR_ORIGINAL/$VALOR_SUBSTITUIR/" ${ATTRIBUTE_CONFIG}
+
+    #
+    # SHIB - metadata-providers.xml
+    # Inclui o SP do dashboard no arquivo metada-providers. 
+    #
+    #
+
+    ### "" 
+    ### "Configurando metadata-providers.xml"
+
+    METADATA_PROVIDERS_CONFIG="${SHIBDIR}/conf/metadata-providers.xml"
+    VALOR_ORIGINAL="<\/MetadataProvider>"
+    VALOR_SUBSTITUIR="    <MetadataProvider id=\"sp-mfa\"\n                      xsi:type=\"FileBackedHTTPMetadataProvider\"\n                      backingFile=\"%{idp.home}\/metadata\/dashboard-metadata.xml\"\n                      metadataURL=\"https:\/\/${HN}\.${HN_DOMAIN}\/sp\/saml2\/service-provider-metadata\/dashboard\"\n                      failFastInitialization=\"false\"\/>\n<\/MetadataProvider>"
+    sed -i "$ s/$VALOR_ORIGINAL/$VALOR_SUBSTITUIR/" ${METADATA_PROVIDERS_CONFIG}
+
+    #
+    # SHIB - idp-metadata.xml
+    #
+    #Atualizando xml do IDP para instalações antigas
+
+    ### ""
+    ### "Adequando idp-metadata.xml"
+    sed -i "s/<md:/</g" ${IDP_METADATA_FILEPATH}
+    sed -i "s/<\/md:/<\//g" ${IDP_METADATA_FILEPATH}
+
+    #
+    # SHIB - Updating war idp and restarting jetty
+    #
+
+    ### "" 
+    ### "Build/update WAR"
+    ${SHIBDIR}/bin/build.sh -Didp.target.dir=${SHIBDIR}
+
+    systemctl restart jetty9.service
+    ### "Finalizou instalação dos plugins MFA"
+
+    ###############################
+    #         DATABASE
+    ###############################
+
+    # install MFA database
+    ### "" 
+    ### "Instalando banco de dados"
+
+    apt-get install wget ca-certificates
+    wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+    sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" >> /etc/apt/sources.list.d/pgdg.list'
+    apt-get update
+    apt-get install -y postgresql postgresql-contrib
+
+    ### "" 
+    ### "Configurando base"
+
+    #Ambiente com um unico servidor
+    ### "Configurando base"   
+
+    sudo -u postgres psql -c '\set AUTOCOMMIT on'
+    #Configuracoes basicas de permissao para que possa ser realizado configuracao de privilegios        
+    su - postgres bash -c "psql -c 'SELECT pg_reload_conf();'"
+    ### "Criando base/usuarios e setando permissoes"
+    sudo -u postgres psql <<-EOF
+SELECT pg_reload_conf(); 
+CREATE USER ${DB_DASH_USER} WITH PASSWORD '${DB_DASH_PASSWORD}'; 
+CREATE DATABASE ${DATABASE};  
+ALTER DATABASE ${DATABASE} OWNER TO ${DB_DASH_USER};
+CREATE USER ${DB_IDP_USER} WITH PASSWORD '${DB_IDP_PASSWORD}';
+GRANT CONNECT ON DATABASE ${DATABASE} TO ${DB_IDP_USER};
+EOF
+
+    PGPASSWORD=${DB_DASH_PASSWORD} psql -h localhost -U ${DB_DASH_USER} -d ${DATABASE} <<-EOF
+GRANT USAGE ON SCHEMA public TO ${DB_IDP_USER};
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO ${DB_IDP_USER};
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO ${DB_IDP_USER};
+EOF
+
+    ### "Finalizou configuracao da base"
+
+    ### "Reiniciando base após configuracoes"
+    systemctl restart postgresql
+
+    ###############################
+    #          DASHBOARD
+    ###############################
+
+    ### "" 
+    ### "Instalando dashboard"
+
+    if [ ! -d "${DASHBOARD_DIR}" ]; then
+        mkdir -p ${DASHBOARD_DIR}
+    fi  
+    ### "" 
+    ### "Obtendo os arquivos do dashboard"
+    cp -r ${MFA_TEMP}/dashboard/* ${DASHBOARD_DIR}/
+    sed -i "s/FQDN/${HN}\.${HN_DOMAIN}/g" ${DASHBOARD_DIR}/mfa.service
+    mv ${DASHBOARD_DIR}/mfa.service /etc/systemd/system/
+    systemctl enable mfa.service
+    systemctl daemon-reload
+
+    ### "" 
+    ### "Criando certificados para requisições SAML"
+    mkdir -p ${DASHBOARD_DIR}/credentials
+    cat  > ${MFA_TEMP}/sp-cert.cnf <<-EOF
+[req]
+
+default_bits=3072
+default_md=sha256
+encrypt_key=no
+distinguished_name=dn
+# PrintableStrings only
+string_mask=MASK:0002
+prompt=no
+x509_extensions=ext
+
+# customize the "default_keyfile,", "CN" and "subjectAltName" lines below
+default_keyfile=${DASHBOARD_DIR}/credentials/mfa-saml2-key.pem
+
+[dn]
+CN=${HN}.${HN_DOMAIN}
+
+[ext]
+subjectAltName = DNS:${HN}.${HN_DOMAIN}
+subjectKeyIdentifier=hash
+EOF
+
+    # Creating Dashboard certificates
+    openssl req -new -x509 -config ${MFA_TEMP}/sp-cert.cnf -out ${DASHBOARD_DIR}/credentials/mfa-saml2-cert.pem -days 3700
+    
+    # Setting Dashboard properties
+    setProperty "database.username" "${DB_DASH_USER}" "${DASHBOARD_DIR}/database.properties"
+    setProperty "database.password" "${DB_DASH_PASSWORD}" "${DASHBOARD_DIR}/database.properties"
+
+    DB_IS_PRIMARY="true"
+
+    setProperty "mail.smtp.host" "${SMTP_HOST}" "${DASHBOARD_DIR}/mfa.properties"
+    setProperty "mail.smtp.port" "${SMTP_PORT}" "${DASHBOARD_DIR}/mfa.properties"
+    setProperty "mail.username" "${SMTP_USERNAME}" "${DASHBOARD_DIR}/mfa.properties"
+    setProperty "mail.password" "${SMTP_PASSWORD}" "${DASHBOARD_DIR}/mfa.properties"
+    setProperty "mail.friendly-name" "${SMTP_NOME_AMIGAVEL}" "${DASHBOARD_DIR}/mfa.properties"
+    setProperty "mail.friendly-email" "${SMTP_EMAIL_ORIGINADOR}" "${DASHBOARD_DIR}/mfa.properties"
+    setProperty "mail.signature.name" "${SMTP_ASSINATURA}" "${DASHBOARD_DIR}/mfa.properties"
+
+    setProperty "institution.maintainer.name" "${PAINEL_ADMIN_NAME}" "${DASHBOARD_DIR}/mfa.properties"
+    setProperty "institution.maintainer.username" "${PAINEL_ADMIN_EPPN}" "${DASHBOARD_DIR}/mfa.properties"
+    setProperty "institution.maintainer.email" "${PAINEL_ADMIN_EMAIL}" "${DASHBOARD_DIR}/mfa.properties"
+
+    setProperty "idp.keystoreResource" "/credentials/${IDP_DATASEALER_NAME}.jks" "${DASHBOARD_DIR}/mfa.properties"
+    setProperty "idp.keyVersionResource" "/credentials/${IDP_DATASEALER_NAME}.kver" "${DASHBOARD_DIR}/mfa.properties"
+    setProperty "idp.keystorePassword" "${IDP_DATASEALER_PASSWD}" "${DASHBOARD_DIR}/mfa.properties"
+    setProperty "idp.keyPassword" "${IDP_DATASEALER_PASSWD}" "${DASHBOARD_DIR}/mfa.properties"
+
+    setProperty "database.is-primary" "${DB_IS_PRIMARY}" "${DASHBOARD_DIR}/database.properties"
+    setProperty "database.port" "${DB_PORT}" "${DASHBOARD_DIR}/database.properties"
+
+    ###############################
+    #          APACHE
+    ###############################
+
+    # "Configurando Apache" 
+    #Editando configuracao Apache. Substitui ultima entrada de VALOR_ORIGINAL por VALOR_SUBSTITUIR 
+    APACHE_CONFIG="/etc/apache2/sites-available/01-idp.conf"
+    VALOR_ORIGINAL="<\/VirtualHost>"
+    VALOR_SUBSTITUIR="    Header set Cache-Control \"no-cache\"\n    RedirectMatch 204 favicon.ico\n    ProxyPass \/sp http:\/\/localhost:9090\/sp\n    ProxyPassReverse \/sp http:\/\/localhost:9090\/sp\n<\/VirtualHost>"
+    sed -i "$ s/$VALOR_ORIGINAL/$VALOR_SUBSTITUIR/" ${APACHE_CONFIG}
+
+    ###############################
+    #          Starts
+    ###############################
+
+    # "Reiniciando servicos"
+
+    ### "Reiniciando apache apos ajuste de configuracao"
+    systemctl restart apache2.service
+
+    ### "Reiniciando IDP devido mudancas de configuracoes"
+    systemctl restart jetty.service
+    sleep 90
+
+    ### "Iniciando dasboard"
+    systemctl start mfa.service
+    sleep 60
+
+    systemctl restart jetty.service
+    sleep 60
+
+    # "Instalacao finalizada"	
+
+}
+
 function main {
 
     echo "" | tee -a ${F_LOG}
@@ -947,7 +1249,7 @@ function main {
     echo "          RNP - Rede Nacional de Ensino e Pesquisa          " | tee -a ${F_LOG}
     echo "            CAFe - Comunidade Acadêmica Federada            " | tee -a ${F_LOG}
     echo "------------------------------------------------------------" | tee -a ${F_LOG}
-    echo "Script: firstboot.sh                Versao: 5.0.0 10/03/2024" | tee -a ${F_LOG}
+    echo "Script: firstboot.sh                Versao: 5.0.0 25/10/2024" | tee -a ${F_LOG}
     echo "------------------------------------------------------------" | tee -a ${F_LOG}
     echo "" | tee -a ${F_LOG}
     echo "SYSDATE = ${SYSDATE}" | tee -a ${F_LOG}
@@ -969,7 +1271,6 @@ function main {
 
     check_integrity
     update_packages
-#    config_network
     config_firewall
     config_ntp
     config_user
@@ -980,6 +1281,7 @@ function main {
     configure_layout
     configure_fticks
     configure_fail2ban
+    #install_mfa
 
 }
 
