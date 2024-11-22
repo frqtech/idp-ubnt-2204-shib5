@@ -7,7 +7,7 @@
 #date               2024/10/25
 #version            5.0.2
 #
-#changelog          5.0.2 - 2024/10/25 - MFA e ajustes gerais.
+#changelog          5.0.2 - 2024/22/11 - MFA e ajustes gerais.
 #changelog          5.0.1 - 2024/08/07 - Adequação para Shibboleth IDP 5.1.3.
 #changelog          5.0.0 - 2024/02/29 - Adequação para Shibboleth IDP 5.0.0.
 
@@ -100,19 +100,6 @@ function config_ntp {
     wget ${REPOSITORY}/ntp/ntp.conf -O /etc/ntp.conf
 
     echo "INFO - Configuração de NTP finalizada" | tee -a ${F_LOG}
-    echo "" | tee -a ${F_LOG}
-
-}
-
-function config_user {
-
-    echo "INFO - Iniciando configuração de usuário" | tee -a ${F_LOG}
-
-    PWDSALT=`openssl rand -base64 4`
-    PWDENC=`openssl passwd -6 -salt ${PWDSALT} ${PWDCAFE}`
-    useradd cafe -s /bin/bash -p ${PWDENC}
-
-    echo "INFO - Configuração de usuário finalizada" | tee -a ${F_LOG}
     echo "" | tee -a ${F_LOG}
 
 }
@@ -271,7 +258,7 @@ idp.target.dir=${SHIBDIR}
 idp.sealer.password=changeit
 idp.keystore.password=changeit
 idp.host.name=${HN}.${HN_DOMAIN}
-idp.scope=${DOMAIN}
+idp.scope=${HN_DOMAIN}
 idp.entityID=https://${HN}.${HN_DOMAIN}/idp/shibboleth
 EOF
 
@@ -411,7 +398,7 @@ idp.additionalProperties= /credentials/secrets.properties
 
 idp.entityID= https://${HN}.${HN_DOMAIN}/idp/shibboleth
 
-idp.scope= ${DOMAIN}
+idp.scope= ${HN_DOMAIN}
  
 idp.csrf.enabled=true
 
@@ -493,13 +480,13 @@ EOF
 
     <IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol urn:oasis:names:tc:SAML:1.1:protocol urn:mace:shibboleth:1.0">
         <Extensions>
-            <shibmd:Scope regexp="false">${DOMAIN}</shibmd:Scope>
+            <shibmd:Scope regexp="false">${HN_DOMAIN}</shibmd:Scope>
             <mdui:UIInfo>
                 <mdui:DisplayName xml:lang="en">${INITIALS} - ${ORGANIZATION}</mdui:DisplayName>
                 <mdui:DisplayName xml:lang="pt-br">${INITIALS} - ${ORGANIZATION}</mdui:DisplayName>
                 <mdui:Description xml:lang="en">${INITIALS} - ${ORGANIZATION}</mdui:Description>
                 <mdui:Description xml:lang="pt-br">${INITIALS} - ${ORGANIZATION}</mdui:Description>
-                <mdui:InformationURL xml:lang="pt-br">http://www.${DOMAIN}/</mdui:InformationURL>
+                <mdui:InformationURL xml:lang="pt-br">http://www.${HN_DOMAIN}/</mdui:InformationURL>
             </mdui:UIInfo>
         </Extensions>
         <KeyDescriptor>
@@ -530,7 +517,7 @@ ${CRT}
 
     <AttributeAuthorityDescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:1.1:protocol">
         <Extensions>
-            <shibmd:Scope regexp="false">${DOMAIN}</shibmd:Scope>
+            <shibmd:Scope regexp="false">${HN_DOMAIN}</shibmd:Scope>
         </Extensions>
         <KeyDescriptor>
             <ds:KeyInfo>
@@ -878,6 +865,9 @@ findtime = 300
 maxretry = 5
 EOF
 
+    systemctl enable fail2ban.service
+    systemctl start fail2ban.service
+
 }
 
 function install_mfa {
@@ -1087,7 +1077,7 @@ EOF
     ### "Build/update WAR"
     ${SHIBDIR}/bin/build.sh -Didp.target.dir=${SHIBDIR}
 
-    systemctl restart jetty9.service
+    systemctl restart jetty.service
     ### "Finalizou instalação dos plugins MFA"
 
     ###############################
@@ -1249,7 +1239,7 @@ function main {
     echo "          RNP - Rede Nacional de Ensino e Pesquisa          " | tee -a ${F_LOG}
     echo "            CAFe - Comunidade Acadêmica Federada            " | tee -a ${F_LOG}
     echo "------------------------------------------------------------" | tee -a ${F_LOG}
-    echo "Script: firstboot.sh                Versao: 5.0.0 25/10/2024" | tee -a ${F_LOG}
+    echo "Script: firstboot.sh                Versao: 5.0.2 22/11/2024" | tee -a ${F_LOG}
     echo "------------------------------------------------------------" | tee -a ${F_LOG}
     echo "" | tee -a ${F_LOG}
     echo "SYSDATE = ${SYSDATE}" | tee -a ${F_LOG}
@@ -1273,7 +1263,6 @@ function main {
     update_packages
     config_firewall
     config_ntp
-    config_user
     install_java
     install_jetty
     install_shib
@@ -1281,7 +1270,7 @@ function main {
     configure_layout
     configure_fticks
     configure_fail2ban
-    #install_mfa
+    install_mfa
 
 }
 
