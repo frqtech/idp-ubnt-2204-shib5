@@ -142,15 +142,23 @@
         <ReturnAttributes>brEduAffiliationType</ReturnAttributes>
     </DataConnector>
 
-
-    <DataConnector id="ComputedIDConnector" xsi:type="ComputedId" generatedAttributeID="ComputedID" salt="%{idp.cafe.computedIDsalt}">
-        <InputDataConnector ref="dcLDAP1" attributeNames="%{idp.authn.LDAP.returnAttributes}" />
-        <InputDataConnector ref="dcLDAP2" attributeNames="%{idp.authn.LDAP.returnAttributes}" />
-    </DataConnector>
-
     <DataConnector id="staticAttributes" xsi:type="Static">
         <Attribute id="eduPersonEntitlement">
             <Value>urn:mace:rediris.es:entitlement:wiki:tfemc2</Value>
+        </Attribute>
+        <Attribute id="eduPersonAssurance">
+            <Value>https://refeds.org/assurance</Value>
+            <Value>https://refeds.org/assurance/version/2</Value>
+            <Value>https://refeds.org/assurance/IAP/low</Value>
+            <Value>https://refeds.org/assurance/IAP/medium</Value>
+            <Value>https://refeds.org/assurance/ID/unique</Value>
+            <Value>https://refeds.org/assurance/profile/cappuccino</Value>
+        </Attribute>
+        <Attribute id="schacHomeOrganization">
+                <Value>%{idp.scope}</Value>
+        </Attribute>
+        <Attribute id="schacHomeOrganizationType">
+                <Value>urn:schac:homeOrganizationType:br:university</Value>
         </Attribute>
     </DataConnector>
 

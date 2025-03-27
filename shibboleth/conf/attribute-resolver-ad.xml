@@ -116,10 +116,6 @@
         <ReturnAttributes>%{idp.authn.LDAP.returnAttributes} mail cn givenName sn objectGUID</ReturnAttributes>
     </DataConnector>
 
-    <DataConnector id="ComputedIDConnector" xsi:type="ComputedId" generatedAttributeID="ComputedID" salt="%{idp.cafe.computedIDsalt}">
-        <InputDataConnector ref="dcLDAP" attributeNames="%{idp.authn.LDAP.returnAttributes}" />
-    </DataConnector>
-
     <DataConnector id="staticAttributes" xsi:type="Static">
         <Attribute id="eduPersonEntitlement">
             <Value>urn:mace:rediris.es:entitlement:wiki:tfemc2</Value>

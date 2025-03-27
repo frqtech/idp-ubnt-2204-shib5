@@ -62,6 +62,81 @@ function setProperty {
 
 }
 
+function dump_vars {
+
+    echo "### INFORMACOES DE DEBUG ###" | tee -a ${F_DEBUG}
+    echo "" | tee -a ${F_DEBUG}
+    echo "REPOSITORY                = ${REPOSITORY}" | tee -a ${F_DEBUG}
+    echo "F_LOG                     = ${F_LOG}" | tee -a ${F_DEBUG}
+    echo "" | tee -a ${F_DEBUG}
+    echo "SYSDATE                   = ${SYSDATE}" | tee -a ${F_DEBUG}
+    echo "SO_DISTID                 = ${SO_DISTID}" | tee -a ${F_DEBUG}
+    echo "SO_RELEASE                = ${SO_RELEASE}" | tee -a ${F_DEBUG}
+    echo "" | tee -a ${F_DEBUG}
+    echo "FIRSTBOOT                 = ${FIRSTBOOT}" | tee -a ${F_DEBUG}
+    echo "" | tee -a ${F_DEBUG}
+    echo "SHIBVERSION               = ${SHIBVERSION}" | tee -a ${F_DEBUG}
+    echo "SHIBTAR                   = ${SHIBTAR}" | tee -a ${F_DEBUG}
+    echo "SHIBSUM                   = ${SHIBSUM}" | tee -a ${F_DEBUG}
+    echo "SHIBTAROUT                = ${SHIBTAROUT}" | tee -a ${F_DEBUG}
+    echo "SHIBSUMOUT                = ${SHIBSUMOUT}" | tee -a ${F_DEBUG}
+    echo "" | tee -a ${F_DEBUG}
+    echo "SRCDIR                    = ${SRCDIR}" | tee -a ${F_DEBUG}
+    echo "SHIBDIR                   = ${SHIBDIR}" | tee -a ${F_DEBUG}
+    echo "" | tee -a ${F_DEBUG}
+    echo "ORGANIZATION              = ${ORGANIZATION}" | tee -a ${F_DEBUG}
+    echo "INITIALS                  = ${INITIALS}" | tee -a ${F_DEBUG}
+    echo "URL                       = ${URL}" | tee -a ${F_DEBUG}
+    echo "OU                        = ${OU}" | tee -a ${F_DEBUG}
+    echo "CITY                      = ${CITY}" | tee -a ${F_DEBUG}
+    echo "STATE                     = ${STATE}" | tee -a ${F_DEBUG}
+    echo "" | tee -a ${F_DEBUG}
+    echo "HN                        = ${HN}" | tee -a ${F_DEBUG} 
+    echo "HN_DOMAIN                 = ${HN_DOMAIN}" | tee -a ${F_DEBUG}
+    echo "IP                        = ${IP}" | tee -a ${F_DEBUG}
+    echo "" | tee -a ${F_DEBUG}
+    echo "DIRECTORY                 = ${DIRECTORY}" | tee -a ${F_DEBUG}
+    echo "LDAPSERVER                = ${LDAPSERVER}" | tee -a ${F_DEBUG}
+    echo "LDAPSERVERPORT            = ${LDAPSERVERPORT}" | tee -a ${F_DEBUG}
+    echo "LDAPSERVERSSL             = ${LDAPSERVERSSL}" | tee -a ${F_DEBUG} 
+    echo "LDAPSERVERPROTO           = ${LDAPSERVERPROTO}" | tee -a ${F_DEBUG}
+    echo "LDAPSUBTREESEARCH         = ${LDAPSUBTREESEARCH}" | tee -a ${F_DEBUG}
+    echo "LDAPDN                    = ${LDAPDN}" | tee -a ${F_DEBUG}
+    echo "LDAPFORM                  = ${LDAPFORM}" | tee -a ${F_DEBUG}
+    echo "LDAPATTR                  = ${LDAPATTR}" | tee -a ${F_DEBUG}
+    echo "LDAPUSER                  = ${LDAPUSER}" | tee -a ${F_DEBUG}
+    echo "LDAPPWD                   = ${LDAPPWD}" | tee -a ${F_DEBUG}
+    echo "" | tee -a ${F_DEBUG}
+    echo "CONTACTGIVEN              = ${CONTACTGIVEN}" | tee -a ${F_DEBUG}
+    echo "CONTACTSUR                = ${CONTACTSUR}" | tee -a ${F_DEBUG}
+    echo "CONTACTMAIL               = ${CONTACTMAIL}" | tee -a ${F_DEBUG}
+    echo "" | tee -a ${F_DEBUG}
+    echo "MSG_AUTENTICACAO          = ${MSG_AUTENTICACAO}" | tee -a ${F_DEBUG}
+    echo "MSG_URL_RECUPERACAO_SENHA = ${MSG_URL_RECUPERACAO_SENHA}" | tee -a ${F_DEBUG}            
+    echo "URL_RECUPERACAO_SENHA     = ${URL_RECUPERACAO_SENHA}" | tee -a ${F_DEBUG}
+    echo "" | tee -a ${F_DEBUG}
+    echo "PERSISTENTDIDSALT         = ${PERSISTENTDIDSALT}" | tee -a ${F_DEBUG}
+    echo "FTICKSSALT                = ${FTICKSSALT}" | tee -a ${F_DEBUG}
+    echo "" | tee -a ${F_DEBUG}
+    echo "SMTP_NOME_AMIGAVEL        = ${SMTP_NOME_AMIGAVEL}" | tee -a ${F_DEBUG}
+    echo "SMTP_EMAIL_ORIGINADOR     = ${SMTP_EMAIL_ORIGINADOR}" | tee -a ${F_DEBUG}
+    echo "SMTP_ASSINATURA           = ${SMTP_ASSINATURA}" | tee -a ${F_DEBUG}
+    echo "" | tee -a ${F_DEBUG}
+    echo "CAPTCHA_KEY               = ${CAPTCHA_KEY}" | tee -a ${F_DEBUG}
+    echo "CAPTCHA_TOKEN             = ${CAPTCHA_TOKEN}" | tee -a ${F_DEBUG}
+    echo "" | tee -a ${F_DEBUG}
+    echo "PAINEL_ADMIN_NAME         = ${PAINEL_ADMIN_NAME}" | tee -a ${F_DEBUG}
+    echo "PAINEL_ADMIN_EPPN         = ${PAINEL_ADMIN_EPPN}" | tee -a ${F_DEBUG}
+    echo "PAINEL_ADMIN_EMAIL        = ${PAINEL_ADMIN_EMAIL}" | tee -a ${F_DEBUG}
+    echo "" | tee -a ${F_DEBUG}
+    echo "SMTP_HOST                 = ${SMTP_HOST}" | tee -a ${F_DEBUG}
+    echo "SMTP_PORT                 = ${SMTP_PORT}" | tee -a ${F_DEBUG}
+    echo "SMTP_USERNAME             = ${SMTP_USERNAME}" | tee -a ${F_DEBUG}
+    echo "SMTP_PASSWORD             = ${SMTP_PASSWORD}" | tee -a ${F_DEBUG}
+    echo "" | tee -a ${F_DEBUG}
+
+}
+
 function update_packages {
 
     echo "INFO - Atualizando pacotes" | tee -a ${F_LOG}
@@ -200,10 +275,6 @@ function install_shib {
         PERSISTENTDIDSALT=`openssl rand -base64 32`
     fi
 
-    if [ -z ${COMPUTEDIDSALT} ] ; then
-        COMPUTEDIDSALT=`openssl rand -base64 32`
-    fi
-
     if [ -z ${FTICKSSALT} ] ; then
         FTICKSSALT=`openssl rand -base64 32`
     fi
@@ -272,10 +343,10 @@ EOF
 
     echo "INFO - Obtendo arquivos de configuração estáticos" | tee -a ${F_LOG}
     echo "" | tee -a ${F_LOG}
-    if [ "${DIRECTORY}" == "OPENLDAP" ] ; then
+    if [ "${DIRECTORY^^}" == "OPENLDAP" ] ; then
         wget ${REPOSITORY}/shibboleth/conf/attribute-filter-openldap.xml -O ${SHIBDIR}/conf/attribute-filter.xml
         wget ${REPOSITORY}/shibboleth/conf/attribute-resolver-openldap.xml -O ${SHIBDIR}/conf/attribute-resolver.xml
-    elif [ "${DIRECTORY}" == "AD" ] ; then
+    elif [ "${DIRECTORY^^}" == "AD" ] ; then
         wget ${REPOSITORY}/shibboleth/conf/attribute-filter-ad.xml -O ${SHIBDIR}/conf/attribute-filter.xml
         wget ${REPOSITORY}/shibboleth/conf/attribute-resolver-ad.xml -O ${SHIBDIR}/conf/attribute-resolver.xml
     fi
@@ -378,7 +449,6 @@ idp.attribute.resolver.LDAP.bindDNCredential = %{idp.authn.LDAP.bindDNCredential
 # Salt used to generate persistent/pairwise IDs, must be kept secret
 idp.persistentId.salt  = ${PERSISTENTDIDSALT}
 
-idp.cafe.computedIDsalt = ${COMPUTEDIDSALT}
 EOF
 
 #
@@ -1255,6 +1325,7 @@ function main {
     fi
 
     check_integrity
+    dump_vars
     update_packages
     config_firewall
     config_ntp
